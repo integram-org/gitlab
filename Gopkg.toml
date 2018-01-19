@@ -23,3 +23,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/requilence/integram"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/google/go-querystring"

@@ -38,10 +38,10 @@
   revision = "1e59b77b52bf8e4b449a57e6f79f21226d571845"
 
 [[projects]]
-  name = "github.com/k0kubun/pp"
-  packages = ["."]
-  revision = "027a6d1765d673d337e687394dbe780dd64e2a1e"
-  version = "v2.3.0"
+  branch = "master"
+  name = "github.com/google/go-querystring"
+  packages = ["query"]
+  revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
 
 [[projects]]
   name = "github.com/kelseyhightower/envconfig"
@@ -54,12 +54,6 @@
   packages = ["."]
   revision = "2e6820834a1f36c626bf19a253b7d3cc060e9b8b"
   version = "v1.2.3"
-
-[[projects]]
-  name = "github.com/mattn/go-colorable"
-  packages = ["."]
-  revision = "167de6bfdfba052fa6b2d3664c8f5272e23c9072"
-  version = "v0.0.9"
 
 [[projects]]
   name = "github.com/mattn/go-isatty"
@@ -175,6 +169,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "eb451f57cf9ed73892ae5120c6fc9679c059ea09c608f6ca4798f3158071db20"
+  inputs-digest = "5413fc120ef1664bc3935b2af7e68b83734be4644ed6a847fb079b031fb2b26d"
   solver-name = "gps-cdcl"
   solver-version = 1
