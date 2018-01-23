@@ -6,10 +6,17 @@ WORKDIR /go/src/${PKG}
 
 COPY Gopkg.toml Gopkg.lock ./
 
-# install the dependencies without checking for go code
+# install locked dependencies(including Integram framework) versions from Gopkg.lock
 RUN dep ensure -vendor-only
 
 COPY . ./
 
 RUN go build -o /go/app ${PKG}/cmd
-CMD ["/go/app"]
+
+# move the builded binary into the tiny alpine linux image
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates && rm -rf /var/cache/apk/*
+WORKDIR /app
+
+COPY --from=builder /go/app .
+CMD ["./app"]
