@@ -11,7 +11,7 @@ RUN dep ensure -vendor-only
 
 COPY . ./
 
-RUN go build -o /go/app ${PKG}/cmd
+RUN CGO_ENABLED=0 GOOS=linux go build -installsuffix cgo -o /go/app ${PKG}/cmd
 
 # move the builded binary into the tiny alpine linux image
 FROM alpine:latest
