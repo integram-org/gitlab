@@ -133,6 +133,10 @@ func cacheNickMap(c *integram.Context) error {
 	return err
 }
 
+type project struct {
+	Path string `json:"path_with_namespace"`
+}
+
 type repository struct {
 	Name        string
 	URL         string `json:"url"`
@@ -243,6 +247,7 @@ type webhook struct {
 	//ProjectID        int
 	Repository   repository
 	ProjectID    int `json:"project_id"`
+	Project      project
 	Issue        *issue
 	Snippet      *snippet
 	After        string
@@ -618,7 +623,20 @@ func webhookHandler(c *integram.Context, request *integram.WebhookContext) (err 
 			} else {
 				msg.SetReplyAction(commitsReplied, c.ServiceBaseURL.String(), wh.ProjectID, wh.Commits)
 			}
-			text := fmt.Sprintf("%s %s to %s\n%s", mention(c, wh.UserName, wh.UserEmail), m.URL("pushed", wp), m.URL(wh.Repository.Name+"/"+branch, wh.Repository.Homepage+"/tree/"+url.QueryEscape(branch)), text)
+
+			destStr := wh.Project.Path
+			if destStr == "" {
+				destStr = wh.Repository.Name
+			}
+
+			text := fmt.Sprintf(
+				"%s %s to %s\n%s",
+				mention(c, wh.UserName, wh.UserEmail),
+				m.URL("pushed", wp),
+				m.URL(destStr+"/"+branch, wh.Repository.Homepage+"/tree/"+url.QueryEscape(branch)),
+				text,
+			)
+
 			c.Chat.SetCache("commit_"+wh.Commits[len(wh.Commits)-1].ID, text, time.Hour*24*30)
 
 			err = msg.AddEventID("commit_" + wh.Commits[len(wh.Commits)-1].ID).SetText(text).
@@ -647,8 +665,19 @@ func webhookHandler(c *integram.Context, request *integram.WebhookContext) (err 
 			itemType = "branch"
 		}
 
-		return msg.SetText(fmt.Sprintf("%s pushed new %s at %s", mention(c, wh.UserName, wh.UserEmail), m.URL(itemType+" "+s[len(s)-1], wh.Repository.Homepage+"/tree/"+s[len(s)-1]), m.URL(wh.UserName+" / "+wh.Repository.Name, wh.Repository.Homepage))).
-			EnableHTML().DisableWebPreview().Send()
+		destStr := wh.Project.Path
+		if destStr == "" {
+			destStr = wh.UserName + " / " + wh.Repository.Name
+		}
+
+		return msg.SetText(
+			fmt.Sprintf(
+				"%s pushed new %s at %s",
+				mention(c, wh.UserName, wh.UserEmail),
+				m.URL(itemType+" "+s[len(s)-1], wh.Repository.Homepage+"/tree/"+s[len(s)-1]),
+				m.URL(destStr, wh.Repository.Homepage)
+			)
+		).EnableHTML().DisableWebPreview().Send()
 	case "issue":
 		if wh.ObjectAttributes.MilestoneID > 0 {
 			// Todo: need an API access to fetch milestones
