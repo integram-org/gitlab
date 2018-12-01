@@ -29,6 +29,12 @@ type ChatSettings struct {
 		Update bool
 		Merge  bool
 	}
+	Issues struct {
+		Open   bool
+		Close  bool
+		Update bool
+		Reopen bool
+	}
 	CI struct {
 		Success bool
 		Fail    bool
@@ -37,6 +43,12 @@ type ChatSettings struct {
 }
 
 var defaultChatSettings = ChatSettings{
+	Issues: struct {
+		Open   bool
+		Close  bool
+		Update bool
+		Reopen bool
+	}{true, true, true, true},
 	MR: struct {
 		Open   bool
 		Close  bool
@@ -475,7 +487,7 @@ func commitToReplySelected(c *integram.Context, baseURL string, projectID int, m
 
 	authorized, err := mustBeAuthed(c)
 	if !authorized {
-		return c.User.SetAfterAuthAction(sendCommitComment, c, projectID, commitID, msg.Text)
+		return c.User.SetAfterAuthAction(sendCommitComment, projectID, commitID, msg.Text)
 	}
 
 	c.Service().DoJob(sendCommitComment, projectID, commitID)
@@ -489,7 +501,7 @@ func commitReplied(c *integram.Context, baseURL string, projectID int, commitID 
 
 	authorized, err := mustBeAuthed(c)
 	if !authorized {
-		return c.User.SetAfterAuthAction(sendCommitComment, c, projectID, commitID, c.Message)
+		return c.User.SetAfterAuthAction(sendCommitComment, projectID, commitID, c.Message)
 	}
 	c.Service().DoJob(sendCommitComment, c, projectID, commitID, c.Message)
 	return err
@@ -542,7 +554,6 @@ func webhookHandler(c *integram.Context, request *integram.WebhookContext) (err 
 
 	err = request.JSON(wh)
 
-
 	if err != nil {
 		return
 	}
@@ -554,10 +565,10 @@ func webhookHandler(c *integram.Context, request *integram.WebhookContext) (err 
 	} else if wh.ObjectAttributes != nil {
 		if wh.ObjectAttributes.URL == "" {
 			c.SetServiceBaseURL(wh.ObjectAttributes.URL)
-		}else if wh.Commit != nil {
+		} else if wh.Commit != nil {
 			c.SetServiceBaseURL(wh.Commit.URL)
 		} else {
-			raw,_:=request.RAW()
+			raw, _ := request.RAW()
 			c.Log().WithField("wh", string(*raw)).Error("gitlab webhook empty url")
 		}
 	}
@@ -681,6 +692,23 @@ func webhookHandler(c *integram.Context, request *integram.WebhookContext) (err 
 	case "issue":
 		if wh.ObjectAttributes.MilestoneID > 0 {
 			// Todo: need an API access to fetch milestones
+		}
+
+		cs := chatSettings(c)
+		if !cs.Issues.Open && (wh.ObjectAttributes.Action == "open") {
+			return nil
+		}
+
+		if !cs.Issues.Update && (wh.ObjectAttributes.Action == "update") {
+			return nil
+		}
+
+		if !cs.Issues.Close && (wh.ObjectAttributes.Action == "close") {
+			return nil
+		}
+
+		if !cs.Issues.Reopen && (wh.ObjectAttributes.Action == "reopen") {
+			return nil
 		}
 
 		msg.SetReplyAction(issueReplied, c.ServiceBaseURL.String(), wh.ObjectAttributes.ProjectID, wh.ObjectAttributes.ID)
@@ -842,7 +870,7 @@ func webhookHandler(c *integram.Context, request *integram.WebhookContext) (err 
 			suffix := ""
 			if wh.BuildAllowFailure {
 				suffix = " (allowed to fail)"
-				mark =  "❕"
+				mark = "❕"
 			}
 			text = fmt.Sprintf("%s CI: "+commit+build+" failed after %.1f sec%s", mark, wh.BuildDuration, suffix)
 
@@ -902,6 +930,8 @@ func settingsKeyboardPressed(c *integram.Context) error {
 	if c.Callback.Data == "back" {
 		btns.Append("ci", "CI")
 		btns.Append("mr", "Merge requests")
+		btns.Append("issues", "Issues")
+
 		state = "categories"
 	} else if state == "mr" {
 		btns.Append("back", "← Back")
@@ -922,6 +952,26 @@ func settingsKeyboardPressed(c *integram.Context) error {
 		btns.AppendWithState(boolToState(cs.MR.Update), "update", boolToMark(cs.MR.Update)+"Update")
 		btns.AppendWithState(boolToState(cs.MR.Merge), "merge", boolToMark(cs.MR.Merge)+"Merge")
 		btns.AppendWithState(boolToState(cs.MR.Close), "close", boolToMark(cs.MR.Close)+"Close")
+
+	} else if state == "issues" {
+		btns.Append("back", "← Back")
+		switch c.Callback.Data {
+		case "open":
+			cs.Issues.Open = !stateToBool(c.Callback.State)
+		case "close":
+			cs.Issues.Close = !stateToBool(c.Callback.State)
+		case "update":
+			cs.Issues.Update = !stateToBool(c.Callback.State)
+		case "reopen":
+			cs.Issues.Reopen = !stateToBool(c.Callback.State)
+		}
+
+		c.Chat.SaveSettings(cs)
+
+		btns.AppendWithState(boolToState(cs.Issues.Open), "open", boolToMark(cs.Issues.Open)+"Open")
+		btns.AppendWithState(boolToState(cs.Issues.Update), "update", boolToMark(cs.Issues.Update)+"Update")
+		btns.AppendWithState(boolToState(cs.Issues.Close), "close", boolToMark(cs.Issues.Close)+"Close")
+		btns.AppendWithState(boolToState(cs.Issues.Reopen), "reopen", boolToMark(cs.Issues.Reopen)+"Reopen")
 
 	} else if state == "ci" {
 		btns.Append("back", "← Back")
@@ -947,6 +997,7 @@ func settings(c *integram.Context) error {
 
 	btns.Append("ci", "CI")
 	btns.Append("mr", "Merge requests")
+	btns.Append("issues", "Issues")
 
 	return c.NewMessage().SetText("Tune the notifications").SetInlineKeyboard(btns.Markup(1, "categories")).SetCallbackAction(settingsKeyboardPressed).Send()
 }
