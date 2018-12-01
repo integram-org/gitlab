@@ -686,8 +686,8 @@ func webhookHandler(c *integram.Context, request *integram.WebhookContext) (err 
 				"%s pushed new %s at %s",
 				mention(c, wh.UserName, wh.UserEmail),
 				m.URL(itemType+" "+s[len(s)-1], wh.Repository.Homepage+"/tree/"+s[len(s)-1]),
-				m.URL(destStr, wh.Repository.Homepage)
-			)
+				m.URL(destStr, wh.Repository.Homepage),
+			),
 		).EnableHTML().DisableWebPreview().Send()
 	case "issue":
 		if wh.ObjectAttributes.MilestoneID > 0 {
